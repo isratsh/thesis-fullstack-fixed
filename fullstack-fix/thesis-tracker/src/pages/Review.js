@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useToast } from "../App";
+import { useAuth } from "../context/AuthContext";
 import { thesisAPI } from "../services/api";
 
 const statusConfig = {
@@ -10,6 +11,7 @@ const statusConfig = {
 
 export default function Review() {
   const { addToast } = useToast();
+  const { user } = useAuth();
   const [theses, setTheses]     = useState([]);
   const [loading, setLoading]   = useState(true);
   const [selected, setSelected] = useState(null);
@@ -69,7 +71,14 @@ export default function Review() {
   return (
     <div className="page-enter">
       <div className="topbar">
-        <div className="topbar-title">📝 Review Submissions</div>
+        <div>
+          <div className="topbar-title">📝 Review Submissions</div>
+          {user?.role === "supervisor" && (
+            <div style={{ fontSize: "13px", color: "var(--text2)", marginTop: "4px" }}>
+              👥 Viewing submissions from your assigned students
+            </div>
+          )}
+        </div>
         <span className="badge badge-yellow">{counts.pending} Pending</span>
       </div>
 
@@ -88,7 +97,16 @@ export default function Review() {
       {filtered.length === 0 ? (
         <div className="card" style={{ textAlign:"center", padding:40, color:"var(--text2)" }}>
           <div style={{ fontSize:48, marginBottom:12 }}>🎉</div>
-          <div style={{ fontWeight:700, fontSize:16 }}>No {filter !== "all" ? filter : ""} submissions found</div>
+          <div style={{ fontWeight:700, fontSize:16 }}>
+            {user?.role === "supervisor" && allChapters.length === 0
+              ? "No students assigned yet"
+              : `No ${filter !== "all" ? filter : ""} submissions found`}
+          </div>
+          {user?.role === "supervisor" && allChapters.length === 0 && (
+            <div style={{ fontSize: "13px", marginTop: "10px" }}>
+              Once students select you as their supervisor and submit work, it will appear here.
+            </div>
+          )}
         </div>
       ) : (
         <div className="card" style={{ padding:0 }}>

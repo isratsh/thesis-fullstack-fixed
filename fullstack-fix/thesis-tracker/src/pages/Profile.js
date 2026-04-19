@@ -1,7 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useToast } from "../App";
 import { useAuth } from "../context/AuthContext";
-import { authAPI } from "../services/api";
+import { authAPI, usersAPI } from "../services/api";
+
+const departments = ["CSE", "EEE", "SE", "Economic", "English"];
 
 export default function Profile() {
   const { addToast } = useToast();
@@ -11,10 +13,31 @@ export default function Profile() {
   const [form, setForm] = useState({
     name: user?.name || "", email: user?.email || "",
     phone: user?.phone || "", bio: user?.bio || "",
-    department: user?.department || "", batch: user?.batch || "",
+    department: user?.department || "CSE", batch: user?.batch || "",
+    supervisor: user?.supervisor?._id || "",
   });
   const [pwForm, setPwForm]  = useState({ currentPassword:"", newPassword:"", confirm:"" });
   const [pwSaving, setPwSaving] = useState(false);
+  const [supervisors, setSupervisors] = useState([]);
+  const [studentsList, setStudentsList] = useState([]);
+
+  // Fetch supervisors and students on mount
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        if (user?.role === "student") {
+          const supsRes = await usersAPI.getSupervisors();
+          setSupervisors(supsRes.data?.supervisors || []);
+        } else if (user?.role === "supervisor") {
+          const studsRes = await usersAPI.getMyStudents();
+          setStudentsList(studsRes.data?.students || []);
+        }
+      } catch (err) {
+        console.log("Could not fetch data");
+      }
+    };
+    fetchData();
+  }, [user?.role]);
 
   const set = (k,v) => setForm(f => ({ ...f, [k]:v }));
   const setPw = (k,v) => setPwForm(f => ({ ...f, [k]:v }));
@@ -23,6 +46,10 @@ export default function Profile() {
     setSaving(true);
     try {
       await authAPI.updateProfile(form);
+      // Handle supervisor assignment for students
+      if (user?.role === "student" && form.supervisor && form.supervisor !== user?.supervisor?._id) {
+        await usersAPI.assignSupervisor(user._id, form.supervisor);
+      }
       await refreshUser();
       setEditing(false);
       addToast("Profile updated successfully!", "success");
@@ -105,7 +132,6 @@ export default function Profile() {
                 ["ID","userId",true],
                 ["Email","email"],
                 ["Phone","phone"],
-                ["Department","department"],
                 ...(user?.role==="student" ? [["Batch","batch"]] : []),
               ].map(([label,key,disabled]) => (
                 <div key={key}>
@@ -120,6 +146,84 @@ export default function Profile() {
                   )}
                 </div>
               ))}
+              
+              {/* Department Dropdown */}
+              <div>
+                <label>Department</label>
+                {editing ? (
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px", marginTop: "8px" }}>
+                    {departments.map(dept => (
+                      <button
+                        key={dept}
+                        type="button"
+                        onClick={() => set("department", dept)}
+                        style={{
+                          padding: "10px 12px",
+                          border: "2px solid " + (form.department === dept ? "var(--primary)" : "var(--border)"),
+                          borderRadius: "6px",
+                          background: form.department === dept ? "rgba(37, 99, 235, 0.1)" : "var(--bg2)",
+                          color: form.department === dept ? "var(--primary)" : "var(--text)",
+                          cursor: "pointer",
+                          fontWeight: form.department === dept ? "700" : "500",
+                          fontSize: "13px",
+                          transition: "all 0.2s"
+                        }}
+                      >
+                        {dept}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ padding:"11px 16px", marginTop:8, background:"var(--bg2)", borderRadius:10, fontSize:14 }}>
+                    {user?.department || "—"}
+                  </div>
+                )}
+              </div>
+
+              {/* Supervisor Selection for Students */}
+              {user?.role === "student" && (
+                <div style={{ gridColumn: "1 / -1" }}>
+                  <label style={{ fontWeight: 700 }}>👨‍🏫 Supervisor</label>
+                  {editing ? (
+                    <div style={{ marginTop: "8px" }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "12px" }}>
+                        {supervisors.map(sup => (
+                          <button
+                            key={sup._id}
+                            type="button"
+                            onClick={() => set("supervisor", sup._id)}
+                            style={{
+                              padding: "12px",
+                              border: "2px solid " + (form.supervisor === sup._id ? "var(--primary)" : "var(--border)"),
+                              borderRadius: "8px",
+                              background: form.supervisor === sup._id ? "rgba(37, 99, 235, 0.1)" : "var(--bg2)",
+                              color: form.supervisor === sup._id ? "var(--primary)" : "var(--text)",
+                              cursor: "pointer",
+                              fontWeight: form.supervisor === sup._id ? "700" : "600",
+                              fontSize: "13px",
+                              textAlign: "left",
+                              transition: "all 0.2s"
+                            }}
+                          >
+                            <div style={{ fontSize: "12px", opacity: 0.7 }}>👨‍🏫</div>
+                            <div>{sup.name}</div>
+                            <div style={{ fontSize: "11px", opacity: 0.7 }}>{sup.userId}</div>
+                          </button>
+                        ))}
+                      </div>
+                      {supervisors.length === 0 && (
+                        <div style={{ padding: "12px", background: "rgba(248, 147, 33, 0.1)", borderRadius: "8px", color: "#92400e", fontSize: "13px" }}>
+                          ℹ️ No supervisors available. Contact admin.
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div style={{ padding:"11px 16px", marginTop:8, background:"var(--bg2)", borderRadius:10, fontSize:14 }}>
+                      {user?.supervisor?.name ? `${user.supervisor.name} (${user.supervisor.userId})` : "Not assigned"}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             <div style={{ marginTop:16 }}>
               <label>Bio / About</label>
@@ -165,6 +269,36 @@ export default function Profile() {
               {pwSaving ? "Changing..." : "🔒 Change Password"}
             </button>
           </div>
+
+          {/* My Students (for supervisors) */}
+          {user?.role === "supervisor" && (
+            <div className="card">
+              <div className="section-title">🎓 My Students</div>
+              {studentsList.length > 0 ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {studentsList.map(student => (
+                    <div key={student._id} style={{ padding: "10px", background: "var(--bg2)", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div>
+                        <div style={{ fontWeight: 600 }}>{student.name}</div>
+                        <div style={{ fontSize: "12px", color: "var(--text2)" }}>{student.userId} • Batch {student.batch}</div>
+                        <div style={{ fontSize: "12px", color: "var(--text2)", marginTop: "4px" }}>{student.thesisTitle || "No thesis yet"}</div>
+                      </div>
+                      <div style={{ textAlign: "right" }}>
+                        <div style={{ fontSize: "12px", color: "var(--primary)", fontWeight: 600 }}>Progress: {student.progress || 0}%</div>
+                        <span className={"badge " + (student.isActive ? "badge-green" : "badge-red")} style={{ marginTop: "4px" }}>
+                          {student.isActive ? "✅ Active" : "❌ Inactive"}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ padding: "20px", textAlign: "center", color: "var(--text2)" }}>
+                  No students assigned yet
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

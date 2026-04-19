@@ -41,8 +41,18 @@ router.post("/register", [
     return res.status(400).json({ success: false, message: errors.array()[0].msg });
   }
   try {
-    const { name, userId, email, password, role, department, batch, phone } = req.body;
-    const user = await User.create({ name, userId, email, password, role, department, batch, phone });
+    const { name, userId, email, password, role, department, batch, phone, supervisor } = req.body;
+    const user = await User.create({ 
+      name, 
+      userId, 
+      email, 
+      password, 
+      role, 
+      department: department || "CSE",
+      batch, 
+      phone,
+      supervisor: supervisor || null,
+    });
     sendToken(user, 201, res);
   } catch (err) {
     next(err);
@@ -60,10 +70,29 @@ router.post("/login", [
   }
   try {
     const { userId, password } = req.body;
-    const user = await User.findOne({ userId: userId.toUpperCase() }).select("+password");
-    if (!user || !(await user.comparePassword(password))) {
-      return res.status(401).json({ success: false, message: "Invalid User ID or Password" });
+    const userIdUpper = userId.toUpperCase();
+    let user;
+
+    // Check if using mock data or MongoDB
+    if (!global.mockDB.connected) {
+      // Use mock data
+      user = global.mockDB.users.find(u => u.userId === userIdUpper);
+      if (!user) {
+        return res.status(401).json({ success: false, message: "Invalid User ID or Password" });
+      }
+      const bcrypt = require("bcryptjs");
+      const passwordMatch = await bcrypt.compare(password, user.password);
+      if (!passwordMatch) {
+        return res.status(401).json({ success: false, message: "Invalid User ID or Password" });
+      }
+    } else {
+      // Use MongoDB
+      user = await User.findOne({ userId: userIdUpper }).select("+password");
+      if (!user || !(await user.comparePassword(password))) {
+        return res.status(401).json({ success: false, message: "Invalid User ID or Password" });
+      }
     }
+
     if (!user.isActive) {
       return res.status(401).json({ success: false, message: "Your account is deactivated. Contact admin." });
     }

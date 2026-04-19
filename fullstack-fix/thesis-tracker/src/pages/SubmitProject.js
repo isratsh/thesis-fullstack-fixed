@@ -136,13 +136,32 @@ export default function SubmitProject() {
             </select>
             {(!thesis || !thesis.supervisor) && supervisors.length > 0 && (
               <>
-                <label>Choose Supervisor</label>
-                <select className="input" value={selectedSupervisor} onChange={e => setSelectedSupervisor(e.target.value)}>
-                  <option value="">-- Select Supervisor --</option>
+                <label style={{ fontWeight: 700, color: "var(--primary)" }}>👨‍🏫 Choose Your Supervisor *</label>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginTop: "8px", marginBottom: "12px" }}>
                   {supervisors.map(s => (
-                    <option key={s._id} value={s._id}>{s.name} ({s.userId})</option>
+                    <button
+                      key={s._id}
+                      type="button"
+                      onClick={() => setSelectedSupervisor(s._id)}
+                      style={{
+                        padding: "12px",
+                        border: "2px solid " + (selectedSupervisor === s._id ? "var(--primary)" : "var(--border)"),
+                        borderRadius: "8px",
+                        background: selectedSupervisor === s._id ? "rgba(37, 99, 235, 0.1)" : "var(--bg2)",
+                        color: selectedSupervisor === s._id ? "var(--primary)" : "var(--text)",
+                        cursor: "pointer",
+                        fontWeight: selectedSupervisor === s._id ? "700" : "600",
+                        fontSize: "13px",
+                        textAlign: "left",
+                        transition: "all 0.2s"
+                      }}
+                    >
+                      <div style={{ fontSize: "12px", color: "inherit", opacity: 0.7 }}>👨‍🏫</div>
+                      <div>{s.name}</div>
+                      <div style={{ fontSize: "11px", opacity: 0.7 }}>{s.userId}</div>
+                    </button>
                   ))}
-                </select>
+                </div>
               </>
             )}
             <button className="btn btn-full" onClick={() => {

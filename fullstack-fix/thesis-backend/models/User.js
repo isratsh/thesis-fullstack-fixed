@@ -33,7 +33,11 @@ const userSchema = new mongoose.Schema({
     default: "student",
   },
   phone: { type: String, default: "" },
-  department: { type: String, default: "Computer Science & Engineering" },
+  department: { 
+    type: String, 
+    enum: ["CSE", "EEE", "SE", "Economic", "English"],
+    default: "CSE" 
+  },
   batch: { type: String, default: "" },
   bio: { type: String, default: "" },
   supervisor: {

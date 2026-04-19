@@ -27,7 +27,7 @@ export default function Login() {
     setLoading(true);
     try {
       const user = await login(userId.trim(), password);
-      addToast("Welcome back, " + user.name.split(" ")[0] + "! 👋", "success");
+      addToast("Welcome back, " + user.name + "! 👋", "success");
       navigate("/dashboard");
     } catch (err) {
       setError(err.response?.data?.message || "Login failed. Check your credentials.");

@@ -109,12 +109,18 @@ export default function Dashboard() {
   const chaptersDone      = thesis?.chapters?.filter(c => c.status === "approved").length || 0;
   const pendingChapters   = thesis?.chapters?.filter(c => c.status === "pending").length || 0;
   const overallProgress   = thesis?.progress || 0;
+  
+  // Count pending submissions for supervisors
+  const pendingSubmissions = progressList
+    .filter(t => t.supervisor?._id === user?._id)
+    .flatMap(t => t.chapters.filter(c => c.status === "pending").map(c => ({ thesis: t, chapter: c })));
+
 
   return (
     <div className="page-enter">
       <div className="topbar">
         <div>
-          <div className="topbar-title">Welcome back, {user?.name?.split(" ")[0]} 👋</div>
+          <div className="topbar-title">Welcome back, {user?.name} 👋</div>
           <div style={{ fontSize:13, color:"var(--text2)", marginTop:4 }}>
             {new Date().toLocaleDateString("en-US", { weekday:"long", year:"numeric", month:"long", day:"numeric" })}
           </div>
@@ -201,6 +207,14 @@ export default function Dashboard() {
                   </div>
                 </div>
               ))}
+              
+              {students.length > 0 && (
+                <Link to="/review" style={{ marginTop: 12, display: "block" }}>
+                  <button className="btn" style={{ width: "100%" }}>
+                    📝 View All Submissions ({pendingSubmissions.length} pending)
+                  </button>
+                </Link>
+              )}
             </div>
           )}
 
@@ -236,8 +250,41 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* Upcoming Meetings */}
-          {(role === "student" || role === "supervisor") && (
+          {/* Supervisor: pending submissions */}
+          {role === "supervisor" && (
+            <div className="card">
+              <div className="section-title">⏳ Pending Submissions</div>
+              {pendingSubmissions.length === 0 ? (
+                <div style={{ color:"var(--text2)", fontSize:14, textAlign:"center", padding:20 }}>
+                  All submissions reviewed! Great work! 🎉
+                </div>
+              ) : (
+                <div>
+                  {pendingSubmissions.slice(0, 5).map((item, i) => (
+                    <div key={i} style={{ padding:"10px 0", borderBottom: i < Math.min(5, pendingSubmissions.length) - 1 ? "1px solid var(--border)" : "none" }}>
+                      <div style={{ fontWeight:600, fontSize:13 }}>{item.thesis.title}</div>
+                      <div style={{ fontSize:12, color:"var(--text2)", marginTop:2 }}>
+                        🎓 {item.thesis.student?.name} • {item.chapter.name}
+                      </div>
+                      <div style={{ fontSize:11, color:"var(--text2)", marginTop:2 }}>
+                        Submitted: {item.chapter.file?.uploadedAt ? new Date(item.chapter.file.uploadedAt).toLocaleDateString() : "—"}
+                      </div>
+                    </div>
+                  ))}
+                  {pendingSubmissions.length > 5 && (
+                    <div style={{ marginTop:8, fontSize:12, color:"var(--primary)", fontWeight:600 }}>
+                      +{pendingSubmissions.length - 5} more pending...
+                    </div>
+                  )}
+                  <Link to="/review" style={{ marginTop: 12, display: "block" }}>
+                    <button className="btn btn-success" style={{ width: "100%" }}>
+                      📝 Review Now ({pendingSubmissions.length})
+                    </button>
+                  </Link>
+                </div>
+              )}
+            </div>
+          )}
             <div className="card">
               <div className="section-title">📅 Upcoming Meetings</div>
               {upcomingMeetings.length === 0 ? (

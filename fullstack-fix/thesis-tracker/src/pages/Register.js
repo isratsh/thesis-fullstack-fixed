@@ -1,13 +1,16 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../App";
+// Removed usersAPI import - supervisors selected during submission instead
 
 const roles = [
   { id: "student", icon: "🎓", label: "Student" },
   { id: "supervisor", icon: "👨‍🏫", label: "Supervisor" },
   { id: "admin", icon: "⚙️", label: "Admin" },
 ];
+
+const departments = ["CSE", "EEE", "SE", "Economic", "English"];
 
 export default function Register() {
   const { register } = useAuth();
@@ -21,16 +24,23 @@ export default function Register() {
     password: "",
     confirmPassword: "",
     role: "student",
-    department: "Computer Science & Engineering",
+    department: "CSE",
     batch: "",
     phone: "",
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [showPass, setShowPass] = useState(false);
+  const [supervisors, setSupervisors] = useState([]);
+
+  // Fetch supervisors on component mount (not needed anymore since removed from registration)
+  useEffect(() => {
+    // Supervisors will be selected during thesis submission, not during registration
+  }, []);
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
   };
 
   const handleRegister = async () => {
@@ -50,7 +60,7 @@ export default function Register() {
     setLoading(true);
     try {
       const user = await register(formData);
-      addToast("Account created successfully! Welcome, " + user.name.split(" ")[0] + "! 👋", "success");
+      addToast("Account created successfully! Welcome, " + user.name + "! 👋", "success");
       navigate("/dashboard");
     } catch (err) {
       setError(err.response?.data?.message || "Registration failed. Please try again.");
@@ -154,28 +164,44 @@ export default function Register() {
         </div>
 
         <div style={{ marginBottom: "15px" }}>
-          <label style={{ display: "block", marginBottom: "5px", color: "var(--text)", fontSize: "14px" }}>Department</label>
-          <input
-            type="text"
-            name="department"
-            value={formData.department}
-            onChange={handleChange}
-            placeholder="Department"
-            style={{ width: "100%", padding: "10px", border: "1px solid var(--border)", borderRadius: "4px", background: "var(--input)", color: "var(--text)" }}
-          />
+          <label style={{ display: "block", marginBottom: "8px", color: "var(--text)", fontSize: "14px", fontWeight: "600" }}>Department *</label>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px" }}>
+            {departments.map(dept => (
+              <button
+                key={dept}
+                type="button"
+                onClick={() => setFormData({ ...formData, department: dept })}
+                style={{
+                  padding: "10px 12px",
+                  border: "2px solid " + (formData.department === dept ? "var(--primary)" : "var(--border)"),
+                  borderRadius: "6px",
+                  background: formData.department === dept ? "rgba(37, 99, 235, 0.1)" : "var(--input)",
+                  color: formData.department === dept ? "var(--primary)" : "var(--text)",
+                  cursor: "pointer",
+                  fontWeight: formData.department === dept ? "700" : "500",
+                  fontSize: "13px",
+                  transition: "all 0.2s"
+                }}
+              >
+                {dept}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div style={{ marginBottom: "15px" }}>
-          <label style={{ display: "block", marginBottom: "5px", color: "var(--text)", fontSize: "14px" }}>Batch</label>
-          <input
-            type="text"
-            name="batch"
-            value={formData.batch}
-            onChange={handleChange}
-            placeholder="e.g., 2021"
-            style={{ width: "100%", padding: "10px", border: "1px solid var(--border)", borderRadius: "4px", background: "var(--input)", color: "var(--text)" }}
-          />
-        </div>
+        {formData.role === "student" && (
+          <div style={{ marginBottom: "15px" }}>
+            <label style={{ display: "block", marginBottom: "5px", color: "var(--text)", fontSize: "14px" }}>Batch</label>
+            <input
+              type="text"
+              name="batch"
+              value={formData.batch}
+              onChange={handleChange}
+              placeholder="e.g., 2021"
+              style={{ width: "100%", padding: "10px", border: "1px solid var(--border)", borderRadius: "4px", background: "var(--input)", color: "var(--text)" }}
+            />
+          </div>
+        )}
 
         <div style={{ marginBottom: "20px" }}>
           <label style={{ display: "block", marginBottom: "5px", color: "var(--text)", fontSize: "14px" }}>Phone</label>

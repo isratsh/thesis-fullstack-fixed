@@ -14,7 +14,29 @@ async function notify(userId, message, type = "info") {
 
 // ── IMPORTANT: static routes before /:id ──────────────
 
-// GET /api/thesis/stats/overview
+// GET /api/thesis/all
+router.get("/all", protect, async (req, res, next) => {
+  try {
+    let query = {};
+    
+    // If supervisor, only show their students' theses
+    if (req.user.role === "supervisor") {
+      query.supervisor = req.user._id;
+    }
+    // If student, only show their own thesis
+    else if (req.user.role === "student") {
+      query.student = req.user._id;
+    }
+    // If admin, show all theses
+    
+    const theses = await Thesis.find(query)
+      .populate("student", "name userId email batch")
+      .populate("supervisor", "name userId email")
+      .sort({ updatedAt: -1 });
+    
+    res.json({ success: true, theses });
+  } catch (err) { next(err); }
+});
 router.get("/stats/overview", protect, authorize("admin", "supervisor"), async (req, res, next) => {
   try {
     let query = req.user.role === "supervisor" ? { supervisor: req.user._id } : {};
@@ -47,8 +69,7 @@ router.get("/progress", protect, async (req, res, next) => {
   try {
     const theses = await Thesis.find({})
       .populate("student", "name userId batch")
-      .populate("supervisor", "name userId")
-      .select("title progress chapters.status student supervisor updatedAt")
+      .populate("supervisor", "name userId _id")
       .sort({ updatedAt: -1 });
     const progressData = theses.map(thesis => ({
       _id: thesis._id,
@@ -56,6 +77,7 @@ router.get("/progress", protect, async (req, res, next) => {
       student: thesis.student,
       supervisor: thesis.supervisor,
       progress: thesis.progress || 0,
+      chapters: thesis.chapters || [],
       chaptersCount: thesis.chapters.length,
       approvedChapters: thesis.chapters.filter(c => c.status === "approved").length,
       pendingChapters: thesis.chapters.filter(c => c.status === "pending").length,
@@ -183,6 +205,12 @@ router.put("/:id/chapter/:chapterId/review", protect, authorize("supervisor", "a
     }
     const thesis = await Thesis.findById(req.params.id).populate("student", "name _id");
     if (!thesis) return res.status(404).json({ success: false, message: "Thesis not found" });
+    
+    // Ensure supervisor can only review their own students' submissions
+    if (req.user.role === "supervisor" && thesis.supervisor?.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ success: false, message: "You can only review your own students' work" });
+    }
+    
     const chapter = thesis.chapters.id(req.params.chapterId);
     if (!chapter) return res.status(404).json({ success: false, message: "Chapter not found" });
 
